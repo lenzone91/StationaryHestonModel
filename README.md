@@ -50,3 +50,31 @@ The environment includes:
 - ipywidgets `~=8.1.8`
 - JupyterLab `~=4.5.6`
 - ipykernel `~=7.2.0`
+
+## First simulator/pricer implementation
+
+The `src/stationary_heston` package contains a first object-oriented version of
+the non-calibration part of the paper:
+
+- `HestonParameters` stores the risk-neutral Heston parameters and exposes the
+  invariant CIR Gamma law.
+- `CIRStationarySimulator` simulates the standalone CIR variance, with initial
+  variance set by either the stationary Gamma law, the last available variance,
+  or the CIR mean.
+- `HestonPathSimulator` simulates Heston paths with the paper's positive
+  boosted-Milstein variance step and an Euler step on the log spot.
+- `EuropeanMonteCarloPricer`, `BermudanLSMPricer`, and
+  `BarrierMonteCarloPricer` price European, Bermudan, and barrier products.
+- `compare_initialisations` prices the same product under the three variance
+  initialisation strategies.
+
+Run the example from the repository root:
+
+```bash
+PYTHONPATH=src python src/main.py
+```
+
+This first version deliberately uses plain Monte Carlo and Longstaff-Schwartz
+regression for Bermudan options. It is meant as a readable baseline; the paper's
+recursive quantization machinery can be added behind the same product/pricer
+interfaces later.

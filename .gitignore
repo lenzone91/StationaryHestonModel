@@ -1,5 +1,5 @@
 .codex
-
+*checkpoints/
 .vscode/
 *.code-workspace
-
+__pycache__/
