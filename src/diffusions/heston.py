@@ -1,18 +1,13 @@
-"""Path simulators for the stationary CIR variance and Heston spot."""
+"""Path simulators for the Heston"""
 
 from __future__ import annotations
-from enum import Enum
-
 from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-
-class InitialVarianceStrategy(str, Enum):
-    GAMMA = "GAMMA"
-    LAST_VALUE = "LAST_VALUE"
-    MEAN = "MEAN"
+from ._utils import InitialVarianceStrategy, _boosted_milstein_step
+from .cir import CIRStationarySimulator
 
 @dataclass(frozen = True)
 class HestonPaths:
@@ -27,79 +22,6 @@ class HestonPaths:
     @property
     def terminal_spot(self) -> np.ndarray:
         return self.spot[:, -1]
-
-
-class CIRStationarySimulator:
-    """CIR helper with stationary Gamma initialisation."""
-
-    def __init__(self, 
-        theta: float,
-        kappa: float,
-        stationary_gamma_shape: float,
-        stationary_gamma_scale: float,
-        rng: np.random.Generator | None = None
-    ) -> None:
-        
-        self.theta = theta
-        self.kappa = kappa
-        self.stationary_gamma_shape = stationary_gamma_shape
-        self.stationary_gamma_scale = stationary_gamma_scale
-        self.rng = rng or np.random.default_rng() 
-
-    def initial_variance(
-        self,
-        strategy: InitialVarianceStrategy,
-        n_paths: int,
-        last_variance: float | ArrayLike | None = None,
-    ) -> np.ndarray:
-        """Build a vector of initial variances from the requested strategy."""
-
-        if strategy == "GAMMA":
-            return self.rng.gamma(
-                shape = self.stationary_gamma_shape,
-                scale = self.stationary_gamma_scale,
-                size = n_paths,
-            )
-        if strategy == "MEAN":
-            return np.full(n_paths, self.theta, dtype = float)
-        if strategy == "LAST_VALUE":
-            if last_variance is None:
-                raise ValueError("last_variance is required for LAST_VALUE.")
-            values = np.asarray(last_variance, dtype = float)
-            if values.ndim == 0:
-                return np.full(n_paths, float(values), dtype = float)
-            if values.shape != (n_paths):
-                raise ValueError("last_variance must be scalar or have shape (n_paths,).")
-            return values.copy()
-        raise ValueError(f"Unsupported initial variance strategy: {strategy!r}")
-
-    def simulate(
-        self,
-        maturity: float,
-        n_steps: int,
-        n_paths: int,
-        strategy: InitialVarianceStrategy = InitialVarianceStrategy.GAMMA,
-        last_variance: float | ArrayLike | None = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Simulate the standalone CIR variance with the same Milstein scheme.
-
-        This returns (times, variance). The scheme mirrors the Heston variance
-        leg, i.e. Milstein on Y_t = exp(kappa t) v_t and back-transforming to v_t.
-        """
-
-        times = np.linspace(0.0, maturity, n_steps + 1)
-        h = maturity / n_steps
-        variance = np.empty((n_paths, n_steps + 1), dtype=float)
-        variance[:, 0] = self.initial_variance(strategy, n_paths, last_variance)
-
-        boosted = variance[:, 0].copy()
-        for k, t in enumerate(times[:-1]):
-            z = self.rng.standard_normal(n_paths)
-            boosted = _boosted_milstein_step(boosted, t, h, z)
-            variance[:, k + 1] = np.exp(-self.kappa * times[k + 1]) * boosted
-
-        return times, variance
-
 
 class HestonPathSimulator:
     """Hybrid Stationary Heston simulator.
@@ -227,28 +149,4 @@ class HestonPathSimulator:
         )
 
 
-def _boosted_milstein_step(
-    y: np.ndarray,
-    t: float,
-    h: float,
-    z: np.ndarray,
-    kappa: float,
-    theta: float,
-    xi: float
-) -> np.ndarray:
-    """Milstein step for Y_t = exp(kappa t) v_t.
 
-    Under the Feller condition, the paper writes this as a positive square plus
-    a non-negative drift correction. We still clip tiny negative round-off noise.
-    """
-
-    exp_kt = np.exp(kappa * t)
-    exp_half_kt = np.exp(0.5 * kappa * t)
-    square_shift = 2.0 * np.sqrt(np.maximum(y, 0.0)) / (
-        np.sqrt(h) * xi * exp_half_kt
-    )
-    next_y = (
-        h * exp_kt * (kappa * theta - 0.25 * xi**2)
-        + 0.25 * h * xi**2 * exp_kt * (z + square_shift) ** 2
-    )
-    return np.maximum(next_y, 0.0)

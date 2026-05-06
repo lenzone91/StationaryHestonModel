@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from stationary_heston import (
+from products import (
     BarrierDirection,
     BarrierOption,
     BermudanOption,
     EuropeanOption,
-    HestonPathSimulator,
     OptionType,
 )
+from diffusions import HestonPathSimulator
 
 
 def main():
