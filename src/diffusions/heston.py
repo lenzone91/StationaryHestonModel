@@ -12,27 +12,41 @@ class HestonPathSimulator:
     Stationary Heston simulator.
     """
 
-    def __init__(self, s0: float, r: float, q: float,
-                 kappa: float, theta: float, xi: float,
-                 rho: float, rng: np.random.Generator | None = None) -> None:
+    def __init__(self, 
+        s0: float,
+        r: float,
+        q: float,
+        kappa: float,
+        theta: float,
+        xi: float,
+        rho: float,
+        rng: np.random.Generator | None = None
+    ) -> None:
         """
-        Parameters:
-        -----------
-        s0: float
+        Initialize a stationary Heston path simulator.
+
+        Parameters
+        ----------
+        s0 : float
             Initial spot.
-        r: float
+        r : float
             Risk-free rate.
-        q: float
+        q : float
             Continuous dividend yield.
-        kappa: float
+        kappa : float
             CIR mean-reversion speed.
-        theta: float
+        theta : float
             CIR long-run variance mean.
-        xi: float
+        xi : float
             Vol-of-vol.
-        rho: float
+        rho : float
             Correlation between spot and variance Brownian motions.
-        rng: np.random.Generator | None
+        rng : np.random.Generator | None, optional
+            Random number generator used for path simulation.
+
+        Returns
+        -------
+        None
         """
         if s0 <= 0.0:
             raise ValueError("s0 must be positive.")
@@ -68,18 +82,28 @@ class HestonPathSimulator:
         last_variance: float | np.ndarray | None = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Parameters:
-        -----------
-        maturity: float
-            Simulation horizon
-        n_steps: int
-            Number of steps
-        n_paths: int
-            Number of paths
-        strategy: InitialVarianceStrategy
-            Initial variance strategy ["GAMMA", "LAST_VALUE", "MEAN"] (default = "GAMMA")
-        last_variance: float | np.ndarray 
-            Value of the last variance (not useful for strategy == "GAMMA")
+        Simulate Heston spot and variance paths.
+
+        Parameters
+        ----------
+        maturity : float
+            Time horizon of the simulation.
+        n_steps : int
+            Number of time steps.
+        n_paths : int
+            Number of simulated paths.
+        strategy : InitialVarianceStrategy, optional
+            Initial variance strategy among ``"GAMMA"``, ``"LAST_VALUE"``,
+            and ``"MEAN"``.
+        last_variance : float | np.ndarray | None, optional
+            Scalar variance value or array of shape ``(n_paths,)`` used when
+            ``strategy == "LAST_VALUE"``.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            Pair ``(spot, variance)`` where both arrays have shape
+            ``(n_paths, n_steps + 1)``.
         """
 
         if maturity <= 0.0:
@@ -125,5 +149,4 @@ class HestonPathSimulator:
 
         return np.exp(log_spot), variance
     
-
 

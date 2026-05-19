@@ -97,7 +97,7 @@ class BarrierOption:
         return np.prod(step_survival, axis=1)
 
 
-    def _discrete_barrier_survival(spot: np.ndarray, option: BarrierOption) -> np.ndarray:
+    def _discrete_barrier_survival(self, spot: np.ndarray, option: BarrierOption) -> np.ndarray:
         if option.direction == BarrierDirection.UP_AND_OUT:
             return np.max(spot, axis=1) < option.barrier
         return np.min(spot, axis=1) > option.barrier

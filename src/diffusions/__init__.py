@@ -1,6 +1,6 @@
 """Simple object-oriented Stationary Heston implementation."""
 
-from .cir import CIRStationarySimulator
+from .cir import CIRStationarySimulator, InitialVarianceStrategy
 from .heston import HestonPathSimulator
 
 

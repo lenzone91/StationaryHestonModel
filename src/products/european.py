@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy.typing import ArrayLike
 
 from ._utils import OptionType
 from diffusions.cir import InitialVarianceStrategy
 from diffusions.heston import HestonPathSimulator
 
 class EuropeanOption:
+    """
+    European option class.
+    """
+
     def __init__(self, 
         simulator: HestonPathSimulator,
         strike: float,
@@ -16,9 +19,29 @@ class EuropeanOption:
         option_type: OptionType = OptionType.CALL,
         n_paths: int = 10000,
         n_steps: int = 10000,
-        last_variance: float | ArrayLike | None = None,
+        last_variance: float | np.ndarray | None = None,
         strategy: InitialVarianceStrategy = InitialVarianceStrategy.GAMMA
     ) -> None:
+        """
+        Parameters:
+        -----------
+        simulator: HestonPathSimulator
+            Heston path simulator 
+        strike: float
+            Strike
+        maturity: float
+            Product maturity
+        option_type: OptionType
+            Type of the option ["CALL", "PUT] ("CALL" by default)
+        n_paths: int = 10000
+            Number of paths (10000 by default)
+        n_steps: int = 10000
+            Number of step (10000 by default)
+        last_variance: float | np.ndarray | None
+            Value of the last variance (not useful for strategy == "GAMMA")
+        strategy: InitialVarianceStrategy
+            Initial variance strategy ["GAMMA", "LAST_VALUE", "MEAN"] (default = "GAMMA")
+        """
 
         if strike <= 0.0:
             raise ValueError("strike must be positive.")
@@ -34,12 +57,35 @@ class EuropeanOption:
         self.strategy = strategy
         self.last_variance = last_variance
 
-    def payoff(self, spot: ArrayLike) -> ArrayLike:
+    def payoff(self, spot: np.ndarray) -> np.ndarray:
+        """
+        Payoff formula of the product
+
+        Parameters
+        ----------
+        spot: np.ndarray
+            Current value
+
+        Returns
+        -------
+        np.ndarray
+            Payoff values
+        """
         if self.option_type == OptionType.CALL:
             return np.maximum(spot - self.strike, 0.0)
         return np.maximum(self.strike - spot, 0.0)
 
-    def price(self) -> tuple[ArrayLike, ArrayLike]:
+    def price(self) -> tuple[float, float]:
+        """
+        Price function of the product
+
+        Returns
+        -------
+        float
+            Monte Carlo price
+        float
+            Standard error of the price
+        """
         spots, _ = self.simulator.simulate(
             self.maturity,
             self.n_steps,

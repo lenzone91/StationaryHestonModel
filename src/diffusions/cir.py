@@ -21,16 +21,22 @@ class CIRStationarySimulator:
         rng: np.random.Generator | None = None
     ) -> None:
         """
+        Initialize a stationary CIR variance simulator.
+
         Parameters
         ----------
-        theta: float
-            Long-run mean level of the CIR variance process
-        kappa: float
-            Mean-reversion speed of the CIR variance process
-        xi: float
-            Volatility of volatility of the CIR variance process
-        rng: np.random.Generator | None
-            Random number generator
+        theta : float
+            Long-run mean level of the CIR variance process.
+        kappa : float
+            Mean-reversion speed of the CIR variance process.
+        xi : float
+            Volatility of volatility of the CIR variance process.
+        rng : np.random.Generator | None, optional
+            Random number generator used for path simulation.
+
+        Returns
+        -------
+        None
         """
         
         if not xi**2 <= 2.0 * kappa * theta:
@@ -53,14 +59,22 @@ class CIRStationarySimulator:
     ) -> np.ndarray:
         """
         Build a vector of initial variances from the requested strategy.
-        
+
         Parameters
         ----------
-        strategy: InitialVarianceStrategy
-            Initial variance strategy ["GAMMA", "LAST_VALUE", "MEAN"]
-        n_paths: int
-            Number of paths
-        last_variance: float | np.ndarray | None = None,
+        strategy : InitialVarianceStrategy
+            Initial variance strategy among ``"GAMMA"``, ``"LAST_VALUE"``,
+            and ``"MEAN"``.
+        n_paths : int
+            Number of simulated paths.
+        last_variance : float | np.ndarray | None, optional
+            Scalar variance value or array of shape ``(n_paths,)`` used when
+            ``strategy == "LAST_VALUE"``.
+
+        Returns
+        -------
+        np.ndarray
+            Initial variance values with shape ``(n_paths,)``.
         """
 
         if strategy == "GAMMA":
@@ -91,7 +105,29 @@ class CIRStationarySimulator:
         last_variance: float | np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Simulate the CIR variance with the boosted Milstein scheme.
+        Simulate CIR variance paths with the boosted Milstein scheme.
+
+        Parameters
+        ----------
+        maturity : float
+            Time horizon of the simulation.
+        n_steps : int
+            Number of time steps.
+        n_paths : int
+            Number of simulated paths.
+        strategy : InitialVarianceStrategy, optional
+            Initial variance strategy among ``"GAMMA"``, ``"LAST_VALUE"``,
+            and ``"MEAN"``.
+        last_variance : float | np.ndarray | None, optional
+            Scalar variance value or array of shape ``(n_paths,)`` used when
+            ``strategy == "LAST_VALUE"``.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            Pair ``(times, variance)`` where ``times`` has shape
+            ``(n_steps + 1,)`` and ``variance`` has shape
+            ``(n_paths, n_steps + 1)``.
         """
 
         times = np.linspace(0.0, maturity, n_steps + 1)
