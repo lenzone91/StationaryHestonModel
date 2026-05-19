@@ -5,7 +5,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from ._utils import OptionType
-from diffusions._utils import InitialVarianceStrategy
+from diffusions.cir import InitialVarianceStrategy
 from diffusions.heston import HestonPathSimulator
 
 class EuropeanOption:
@@ -40,8 +40,7 @@ class EuropeanOption:
         return np.maximum(self.strike - spot, 0.0)
 
     def price(self) -> tuple[ArrayLike, ArrayLike]:
-
-        paths = self.simulator.simulate(
+        spots, _ = self.simulator.simulate(
             self.maturity,
             self.n_steps,
             self.n_paths,
@@ -49,7 +48,7 @@ class EuropeanOption:
             self.last_variance,
         )
         
-        discounted = np.exp(-self.simulator.r * self.maturity) * self.payoff(paths.terminal_spot)
+        discounted = np.exp(-self.simulator.r * self.maturity) * self.payoff(spots[:, -1])
         
         price = float(np.mean(discounted))
         standard_error = float(np.std(discounted, ddof=1) / np.sqrt(self.n_paths))

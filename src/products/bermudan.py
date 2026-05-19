@@ -5,8 +5,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from ._utils import OptionType
-from diffusions._utils import InitialVarianceStrategy
-from diffusions.heston import HestonPathSimulator, HestonPaths
+from diffusions.cir import InitialVarianceStrategy
+from diffusions.heston import HestonPathSimulator
 
 class BermudanOption:
     """Longstaff-Schwartz Bermudan pricer.
@@ -58,7 +58,7 @@ class BermudanOption:
 
     def price(self) -> tuple[ArrayLike, ArrayLike]:
 
-        paths = self.simulator.simulate(
+        spots, variance = self.simulator.simulate(
             self.maturity,
             self.n_steps,
             self.n_paths,
@@ -66,21 +66,23 @@ class BermudanOption:
             self.last_variance,
         )
 
-        exercise_indices = self._time_indices(paths.times)
-        values = self.payoff(paths.spot[:, exercise_indices[-1]])
+        times = np.linspace(0.0, self.maturity, self.n_steps + 1)
+
+        exercise_indices = self._time_indices(times)
+        values = self.payoff(spots[:, exercise_indices[-1]])
         exercise_time_index = np.full(self.n_paths, exercise_indices[-1], dtype=int)
 
         for idx in reversed(exercise_indices[:-1]):
             continuation_cashflow = values * np.exp(
                 -self.simulator.r
-                * (paths.times[exercise_time_index] - paths.times[idx])
+                * (times[exercise_time_index] - times[idx])
             )
-            immediate = self.payoff(paths.spot[:, idx])
+            immediate = self.payoff(spots[:, idx])
             itm = immediate > 0.0
 
             continuation = np.zeros(self.n_paths, dtype=float)
             if np.count_nonzero(itm) > self._basis_size:
-                basis = self._basis(paths, idx, itm)
+                basis = self._basis(spots, variance, idx, itm)
                 coefficients, *_ = np.linalg.lstsq(
                     basis,
                     continuation_cashflow[itm],
@@ -93,7 +95,7 @@ class BermudanOption:
             exercise_time_index[exercise_now] = idx
 
         discounted_to_zero = values * np.exp(
-            -self.simulator.r * paths.times[exercise_time_index]
+            -self.simulator.r * times[exercise_time_index]
         )
 
         price = float(np.mean(discounted_to_zero))
@@ -118,9 +120,9 @@ class BermudanOption:
         # 1, S, v, S^2, S*v, v^2 for degree 2.
         return 6 if self.polynomial_degree >= 2 else 3
     
-    def _basis(self, paths: HestonPaths, time_index: int, mask: ArrayLike) -> ArrayLike:
-        spot = paths.spot[mask, time_index] / self.simulator.s0
-        variance = paths.variance[mask, time_index] / self.simulator.theta
+    def _basis(self, spots: np.ndarray, variance: np.ndarray, time_index: int, mask: ArrayLike) -> ArrayLike:
+        spot = spots[mask, time_index] / self.simulator.s0
+        variance = variance[mask, time_index] / self.simulator.theta
         columns = [np.ones_like(spot), spot, variance]
         if self.polynomial_degree >= 2:
             columns.extend([spot**2, spot * variance, variance**2])

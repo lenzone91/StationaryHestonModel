@@ -22,15 +22,15 @@ def main():
 
     rng = np.random.default_rng(42)
 
-    simulator = HestonPathSimulator(s0 = 100, r = 0.04, q = 0, kappa = 1.15,
-                                    theta = 0.0348, xi = 0.39, rho = -0.64, rng = rng)
+    simulator = HestonPathSimulator(s0 = 3541, r = -0.0032, q = 0.00225, kappa = 19.28,
+                                    theta = 0.02691, xi = 1.15, rho = -0.99, rng = rng)
 
     print("European call")
     for strat in ["GAMMA", "LAST_VALUE", "MEAN"]:
 
         european = EuropeanOption(
             simulator = simulator,
-            strike = 100.0,
+            strike = 3541,
             maturity = 0.25, 
             option_type = OptionType.CALL,
             n_paths = n_paths,

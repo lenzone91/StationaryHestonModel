@@ -3,11 +3,10 @@ from __future__ import annotations
 from enum import Enum
 
 import numpy as np
-from numpy.typing import ArrayLike
 
 from ._utils import OptionType
-from diffusions._utils import InitialVarianceStrategy
-from diffusions.heston import HestonPathSimulator, HestonPaths
+from diffusions.cir import InitialVarianceStrategy
+from diffusions.heston import HestonPathSimulator
 
 
 class BarrierDirection(str, Enum):
@@ -50,14 +49,14 @@ class BarrierOption:
         self.last_variance = last_variance
         self.strategy = strategy
 
-    def payoff(self, spot: ArrayLike) -> ArrayLike:
+    def payoff(self, spot: np.ndarray) -> np.ndarray:
         if self.option_type == OptionType.CALL:
             return np.maximum(spot - self.strike, 0.0)
         return np.maximum(self.strike - spot, 0.0)
     
-    def price(self) -> tuple[ArrayLike, ArrayLike]:
+    def price(self) -> tuple[np.ndarray, np.ndarray]:
         
-        paths = self.simulator.simulate(
+        spots, variance = self.simulator.simulate(
             self.maturity,
             self.n_steps,
             self.n_paths,
@@ -65,12 +64,12 @@ class BarrierOption:
             self.last_variance,
         )
         
-        payoff = self.payoff(paths.terminal_spot)
+        payoff = self.payoff(spots[:, -1])
         if self.use_brownian_bridge:
-            survival = self._bridge_survival_probability(paths)
+            survival = self._bridge_survival_probability(np.log(spots), variance)
             discounted = np.exp(-self.simulator.r * self.maturity) * payoff * survival
         else:
-            alive = self._discrete_barrier_survival(paths.spot)
+            alive = self._discrete_barrier_survival(spots)
             discounted = np.exp(-self.simulator.r * self.maturity) * payoff * alive
         
         price = float(np.mean(discounted))
@@ -78,13 +77,13 @@ class BarrierOption:
 
         return price, standard_error
 
-    def _bridge_survival_probability(self, paths: HestonPaths) -> ArrayLike:
+    def _bridge_survival_probability(self, log_spot: np.ndarray, variance: np.ndarray) -> np.ndarray:
         log_barrier = np.log(self.barrier)
-        x0 = paths.log_spot[:, :-1]
-        x1 = paths.log_spot[:, 1:]
-        dt = np.diff(paths.times)[None, :]
-        variance = np.maximum(paths.variance[:, :-1], 1e-16)
-        variance_time = variance * dt
+        x0 = log_spot[:, :-1]
+        x1 = log_spot[:, 1:]
+        times = np.linspace(0.0, self.maturity, self.n_steps + 1)
+        dt = np.diff(times)[None, :]
+        variance_time = variance[:, :-1] * dt
 
         if self.direction == BarrierDirection.UP_AND_OUT:
             impossible = (x0 >= log_barrier) | (x1 >= log_barrier)
@@ -98,7 +97,7 @@ class BarrierOption:
         return np.prod(step_survival, axis=1)
 
 
-    def _discrete_barrier_survival(spot: np.ndarray, option: BarrierOption) -> ArrayLike:
+    def _discrete_barrier_survival(spot: np.ndarray, option: BarrierOption) -> np.ndarray:
         if option.direction == BarrierDirection.UP_AND_OUT:
             return np.max(spot, axis=1) < option.barrier
         return np.min(spot, axis=1) > option.barrier

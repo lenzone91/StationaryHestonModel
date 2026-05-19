@@ -1,34 +1,15 @@
 """Path simulators for the Heston"""
 
 from __future__ import annotations
-from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
-from numpy.typing import ArrayLike
 
-from ._utils import InitialVarianceStrategy, _boosted_milstein_step
-from .cir import CIRStationarySimulator
-
-@dataclass(frozen = True)
-class HestonPaths:
-    """Container returned by the Heston simulator."""
-
-    times: np.ndarray
-    spot: np.ndarray
-    variance: np.ndarray
-    log_spot: np.ndarray
-    initial_variance: np.ndarray
-
-    @property
-    def terminal_spot(self) -> np.ndarray:
-        return self.spot[:, -1]
+from .cir import CIRStationarySimulator, InitialVarianceStrategy
 
 class HestonPathSimulator:
-    """Hybrid Stationary Heston simulator.
-
-    The paper uses Milstein on the boosted variance Y_t = exp(kappa t) v_t and
-    Euler-Maruyama on X_t = log(S_t). This class implements that time scheme
-    pathwise for Monte Carlo pricing.
+    """
+    Stationary Heston simulator.
     """
 
     def __init__(self, s0: float, r: float, q: float,
@@ -72,18 +53,10 @@ class HestonPathSimulator:
         self.xi = xi
         self.rho = rho
 
-        self.feller_lhs = self.xi**2
-        self.feller_rhs = 2.0 * self.kappa * self.theta
-        self.satisfies_feller = self.feller_lhs <= self.feller_rhs
-
-        self.stationary_gamma_shape = 2.0 * self.kappa * self.theta / self.xi**2
-        self.stationary_gamma_rate = 2.0 * self.kappa / self.xi**2
-        self.stationary_gamma_scale = 1.0 / self.stationary_gamma_rate
         self.rng = rng or np.random.default_rng()
         self.cir = CIRStationarySimulator(self.theta,
                                           self.kappa,
-                                          self.stationary_gamma_shape,
-                                          self.stationary_gamma_scale,
+                                          self.xi,
                                           self.rng)
 
     def simulate(
@@ -92,8 +65,23 @@ class HestonPathSimulator:
         n_steps: int,
         n_paths: int,
         strategy: InitialVarianceStrategy = InitialVarianceStrategy.GAMMA,
-        last_variance: float | ArrayLike | None = None,
-    ) -> HestonPaths:
+        last_variance: float | np.ndarray | None = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Parameters:
+        -----------
+        maturity: float
+            Simulation horizon
+        n_steps: int
+            Number of steps
+        n_paths: int
+            Number of paths
+        strategy: InitialVarianceStrategy
+            Initial variance strategy ["GAMMA", "LAST_VALUE", "MEAN"] (default = "GAMMA")
+        last_variance: float | np.ndarray 
+            Value of the last variance (not useful for strategy == "GAMMA")
+        """
+
         if maturity <= 0.0:
             raise ValueError("maturity must be positive.")
         if n_steps < 1:
@@ -104,49 +92,38 @@ class HestonPathSimulator:
         times = np.linspace(0.0, maturity, n_steps + 1)
         h = maturity / n_steps
         sqrt_h = np.sqrt(h)
-        rho = self.rho
-        orthogonal_weight = np.sqrt(max(0.0, 1.0 - rho**2))
+        orthogonal_weight = np.sqrt(1.0 - self.rho**2)
 
-        initial_variance = self.cir.initial_variance(strategy, n_paths, last_variance)
+        boosted_variance = self.cir.initial_variance(strategy, n_paths, last_variance)
         log_spot = np.empty((n_paths, n_steps + 1), dtype=float)
         variance = np.empty((n_paths, n_steps + 1), dtype=float)
         log_spot[:, 0] = np.log(self.s0)
-        variance[:, 0] = initial_variance
+        variance[:, 0] = boosted_variance
 
-        boosted_variance = initial_variance.copy()
         for k, t in enumerate(times[:-1]):
-            z_variance = self.rng.standard_normal(n_paths)
-            z_independent = self.rng.standard_normal(n_paths)
-            z_spot = rho * z_variance + orthogonal_weight * z_independent
+            z_variance = self.rng.standard_normal(n_paths) # the variance brownian
+            z_independent = self.rng.standard_normal(n_paths) # the heston brownian
+            z_spot = self.rho * z_variance + orthogonal_weight * z_independent
 
             v_t = np.exp(-self.kappa * t) * boosted_variance
-            v_t = np.maximum(v_t, 0.0)
+            v_t = np.maximum(v_t, 1e-6)
             log_spot[:, k + 1] = (
                 log_spot[:, k]
                 + (self.r - self.q - 0.5 * v_t) * h
                 + np.sqrt(v_t) * sqrt_h * z_spot
             )
 
-            boosted_variance = _boosted_milstein_step(
+            boosted_variance = self.cir.boosted_milstein_step(
                 boosted_variance,
                 t,
                 h,
                 z_variance,
-                self.kappa,
-                self.theta,
-                self.xi
             )
             variance[:, k + 1] = (
                 np.exp(-self.kappa * times[k + 1]) * boosted_variance
             )
 
-        return HestonPaths(
-            times = times,
-            spot = np.exp(log_spot),
-            variance = variance,
-            log_spot = log_spot,
-            initial_variance = initial_variance,
-        )
-
+        return np.exp(log_spot), variance
+    
 
 
