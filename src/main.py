@@ -17,12 +17,12 @@ from diffusions import HestonPathSimulator
 def main():
 
     n_paths = 20000
-    n_steps = 50
+    n_steps = 6*100
     last_variance = 0.04
 
     rng = np.random.default_rng(42)
 
-    simulator = HestonPathSimulator(s0 = 3541, r = -0.0032, q = 0.00225, kappa = 19.28,
+    simulator = HestonPathSimulator(s0 = 100, r = -0.0032, q = 0.00225, kappa = 19.28,
                                     theta = 0.02691, xi = 1.15, rho = -0.99, rng = rng)
 
     print("European call")
@@ -30,8 +30,8 @@ def main():
 
         european = EuropeanOption(
             simulator = simulator,
-            strike = 3541,
-            maturity = 0.25, 
+            strike = 100,
+            maturity = 0.5, 
             option_type = OptionType.CALL,
             n_paths = n_paths,
             n_steps = n_steps,
@@ -46,10 +46,10 @@ def main():
         bermudan = BermudanOption(
             simulator = simulator,
             strike = 100.0,
-            maturity = 0.25,
+            maturity = 0.5,
             exercise_times = np.linspace(0.05, 0.25, 5),
             option_type = OptionType.PUT,
-            polynomial_degree = 2,
+            polynomial_degree = 3,
             n_paths = n_paths,
             n_steps = n_steps,
             last_variance = last_variance,
