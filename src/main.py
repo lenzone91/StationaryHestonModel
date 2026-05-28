@@ -63,11 +63,11 @@ def main():
         barrier = BarrierOption(
             simulator = simulator,
             strike = 100.0,
-            maturity = 0.25,
+            maturity = 0.5,
             barrier = 115.0,
             direction = BarrierDirection.UP_AND_OUT,
             option_type = OptionType.CALL,
-            use_brownian_bridge = True,
+            use_brownian_bridge = False,
             n_paths = n_paths,
             n_steps = n_steps,
             last_variance = last_variance,
