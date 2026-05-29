@@ -91,7 +91,7 @@ class CIRStationarySimulator:
             values = np.asarray(last_variance, dtype = float)
             if values.ndim == 0:
                 return np.full(n_paths, float(values), dtype = float)
-            if values.shape != (n_paths):
+            if values.shape != (n_paths,):
                 raise ValueError("last_variance must be scalar or have shape (n_paths,).")
             return values
         raise ValueError(f"Unsupported initial variance strategy: {strategy!r}")

@@ -32,17 +32,18 @@ class BermudanOption:
             raise ValueError("strike must be positive.")
         if maturity <= 0.0:
             raise ValueError("maturity must be positive.")
+
         if exercise_times.size == 0:
             raise ValueError("exercise_times cannot be empty.")
-        if min(exercise_times) < 0.0:
+        if np.min(exercise_times) < 0.0:
             raise ValueError("exercise_times must be non-negative.")
-        if max(exercise_times) > maturity:
+        if np.max(exercise_times) > maturity:
             raise ValueError("exercise_times cannot exceed maturity.")
 
         self.simulator = simulator
         self.strike = strike
         self.maturity = maturity
-        self.exercise_times = exercise_times
+        self.exercise_times = np.sort(np.asarray(exercise_times, dtype=float))
         self.option_type = option_type
         self.polynomial_degree = polynomial_degree
         self.basis_size = (polynomial_degree + 1) * (polynomial_degree + 2) // 2
@@ -51,9 +52,10 @@ class BermudanOption:
         self.last_variance = last_variance
         self.strategy = strategy
         self.times = np.linspace(0.0, self.maturity, self.n_steps + 1)
-        self.exercise_indices = (self.exercise_times / self.maturity * self.n_steps).astype("int")
+        raw_exercise_indices = self.exercise_times / self.maturity * self.n_steps
+        self.exercise_indices = np.rint(raw_exercise_indices).astype(int)
 
-        if self.exercise_indices not in self.exercise_indices:
+        if not np.allclose(raw_exercise_indices, self.exercise_indices, rtol=0.0, atol=1e-10):
             raise ValueError("Exercise times must lie on the simulation grid.")
 
 
@@ -62,7 +64,7 @@ class BermudanOption:
             return np.maximum(spot - self.strike, 0.0)
         return np.maximum(self.strike - spot, 0.0)
 
-    def price(self) -> tuple[np.ndarray, np.ndarray]:
+    def price(self) -> tuple[float, float]:
 
         spots, variance = self.simulator.simulate(
             self.maturity,

@@ -56,7 +56,7 @@ class BarrierOption:
             return np.maximum(spot - self.strike, 0.0)
         return np.maximum(self.strike - spot, 0.0)
     
-    def price(self) -> tuple[np.ndarray, np.ndarray]:
+    def price(self) -> tuple[float, float]:
         
         spots, variance = self.simulator.simulate(
             self.maturity,
