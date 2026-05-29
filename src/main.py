@@ -67,7 +67,7 @@ def main():
             barrier = 115.0,
             direction = BarrierDirection.UP_AND_OUT,
             option_type = OptionType.CALL,
-            use_brownian_bridge = False,
+            use_brownian_bridge = True,
             n_paths = n_paths,
             n_steps = n_steps,
             last_variance = last_variance,

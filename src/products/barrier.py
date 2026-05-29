@@ -48,6 +48,8 @@ class BarrierOption:
         self.n_steps = n_steps
         self.last_variance = last_variance
         self.strategy = strategy
+        self.times = np.linspace(0.0, self.maturity, self.n_steps + 1)
+
 
     def payoff(self, spot: np.ndarray) -> np.ndarray:
         if self.option_type == OptionType.CALL:
@@ -81,8 +83,7 @@ class BarrierOption:
         log_barrier = np.log(self.barrier)
         x0 = log_spot[:, :-1]
         x1 = log_spot[:, 1:]
-        times = np.linspace(0.0, self.maturity, self.n_steps + 1)
-        dt = np.diff(times)[None, :]
+        dt = np.diff(self.times)[None, :]
         variance_time = variance[:, :-1] * dt
 
         if self.direction == BarrierDirection.UP_AND_OUT:
@@ -92,12 +93,12 @@ class BarrierOption:
             impossible = (x0 <= log_barrier) | (x1 <= log_barrier)
             exponent = -2.0 * (x0 - log_barrier) * (x1 - log_barrier) / variance_time
 
-        step_survival = 1.0 - np.exp(np.minimum(exponent, 0.0))
+        step_survival = 1.0 - np.exp(exponent)
         step_survival[impossible] = 0.0
         return np.prod(step_survival, axis=1)
 
 
     def _discrete_barrier_survival(self, spot: np.ndarray) -> np.ndarray:
         if self.direction == BarrierDirection.UP_AND_OUT:
-            return np.max(spot, axis=1) < self.barrier
-        return np.min(spot, axis=1) > self.barrier
+            return np.max(spot, axis=1) <= self.barrier
+        return np.min(spot, axis=1) >= self.barrier
