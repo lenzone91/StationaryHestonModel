@@ -48,8 +48,7 @@ The environment includes:
 - matplotlib `~=3.10.8`
 - Plotly `~=6.5`
 - ipywidgets `~=8.1.8`
-- JupyterLab `~=4.5.6`
-- ipykernel `~=7.2.0`
+- Jupyter `~=1.1.1`
 
 ## First simulator/pricer implementation
 

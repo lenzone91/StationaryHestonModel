@@ -18,7 +18,7 @@ def main():
 
     n_paths = 20000
     n_steps = 6*100
-    last_variance = 0.04
+    last_variance = 0.0045
 
     rng = np.random.default_rng(42)
 
